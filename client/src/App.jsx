@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import "./App.css";
 
-const API_URL = "http://localhost:8080/api/rules";
+const API_URL = "https://proofbeforepost.onrender.com/api/rules";
 
 function App() {
   const [rules, setRules] = useState([]);
