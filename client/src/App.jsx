@@ -108,7 +108,7 @@ function App() {
     setAuditResults(null);
 
     try {
-      const response = await fetch("http://localhost:8080/api/audit", {
+      const response = await fetch("https://proofbeforepost.onrender.com/api/audit", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -138,7 +138,7 @@ function App() {
       setLoadingReviews(true);
       setReviewError("");
 
-      const response = await fetch("http://localhost:8080/api/reviews");
+      const response = await fetch("https://proofbeforepost.onrender.com/api/reviews");
       const data = await response.json();
 
       if (!response.ok) {
@@ -164,7 +164,7 @@ function App() {
       setReviewError("");
       setReviewMessage("");
 
-      const createResponse = await fetch("http://localhost:8080/api/reviews", {
+      const createResponse = await fetch("https://proofbeforepost.onrender.com/api/reviews", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -183,7 +183,7 @@ function App() {
       }
 
       const updateResponse = await fetch(
-        `http://localhost:8080/api/reviews/${createdReview.review._id}`,
+        `https://proofbeforepost.onrender.com/api/reviews/${createdReview.review._id}`,
         {
           method: "PATCH",
           headers: {
