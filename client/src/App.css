@@ -617,3 +617,160 @@ letter-spacing: -0.6px;
     padding: 16px;
   }
 }
+
+/* Main navigation */
+.topbar {
+  flex-wrap: wrap;
+}
+
+.main-nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: center;
+  padding: 12px 0;
+}
+
+.main-nav a {
+  color: #455167;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 9px 13px;
+  border: 1px solid #e0e6f0;
+  border-radius: 9px;
+  background: #ffffff;
+  transition: background 0.2s, color 0.2s;
+}
+
+.main-nav a:hover {
+  background: #edf2ff;
+  color: #285bd1;
+}
+
+#audit,
+#rulebook,
+#history {
+  scroll-margin-top: 20px;
+}
+
+@media (max-width: 500px) {
+  .main-nav {
+    width: 100%;
+  }
+}
+
+/* ===== Evidence Management ===== */
+
+.evidence-section {
+margin-top: 28px;
+}
+
+.evidence-form {
+margin-bottom: 24px;
+}
+
+.evidence-list {
+display: grid;
+gap: 14px;
+}
+
+.evidence-card {
+padding: 18px;
+border: 1px solid #e7ebf2;
+border-radius: 12px;
+background: #fcfdff;
+}
+
+.evidence-card h4 {
+margin: 12px 0 8px;
+font-size: 15px;
+line-height: 1.6;
+overflow-wrap: anywhere;
+}
+
+.evidence-card p {
+color: #788397;
+font-size: 12px;
+line-height: 1.7;
+overflow-wrap: anywhere;
+}
+
+.evidence-status {
+display: inline-block;
+padding: 6px 9px;
+border-radius: 6px;
+font-size: 10px;
+font-weight: 800;
+text-transform: uppercase;
+}
+
+.evidence-status.Pending {
+background: #fff5dc;
+color: #93640a;
+}
+
+.evidence-status.Approved {
+background: #eaf8f0;
+color: #198653;
+}
+
+.evidence-status.Rejected {
+background: #fff0ed;
+color: #bd4b35;
+}
+
+.evidence-actions {
+display: flex;
+flex-wrap: wrap;
+gap: 8px;
+margin-top: 14px;
+}
+
+.evidence-actions button {
+padding: 8px 12px;
+border: 1px solid #dfe5ee;
+border-radius: 8px;
+background: #fff;
+color: #455167;
+font-size: 11px;
+font-weight: 700;
+}
+
+.evidence-actions button:hover {
+background: #edf2ff;
+color: #285bd1;
+}
+
+.evidence-meta {
+margin-top: 12px;
+padding-top: 10px;
+border-top: 1px solid #edf0f5;
+color: #788397;
+font-size: 11px;
+overflow-wrap: anywhere;
+}
+
+/* Evidence details inside audit findings */
+
+.evidence-audit-details {
+  margin: 15px 0;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 9px;
+  background: #f8fafc;
+}
+
+.evidence-audit-details p {
+  margin: 8px 0;
+}
+
+.evidence-audit-details a {
+  color: #285bd1;
+  font-weight: 600;
+  text-decoration: none;
+}
+
+.evidence-audit-details a:hover {
+  text-decoration: underline;
+}
