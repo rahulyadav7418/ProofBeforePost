@@ -1,10 +1,24 @@
 import { useState, useEffect } from "react";
 import "./App.css";
+import { authenticateUser, getToken, logoutUser } from "./services/authService";
+import Auth from "./components/Auth";
 
 const API_BASE_URL =
   import.meta.env.VITE_API_BASE_URL || "https://proofbeforepost.onrender.com";
 
 const API_URL = `${API_BASE_URL}/api/rules`;
+const TOKEN_KEY = "proofbeforepost_token";
+async function apiRequest(url, options = {}, authToken) {
+  const headers = {
+    ...options.headers,
+    ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
+  };
+
+  return fetch(url, {
+    ...options,
+    headers,
+  });
+}
 
 function App() {
   const [rules, setRules] = useState([]);
@@ -36,6 +50,20 @@ function App() {
   const [reviewMessage, setReviewMessage] = useState("");
   const [reviewError, setReviewError] = useState("");
   const [reviews, setReviews] = useState([]);
+  // Authentication states
+  const [token, setToken] = useState(getToken());
+
+  const [currentUser, setCurrentUser] = useState(null);
+  const [authMode, setAuthMode] = useState("login");
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
+
+  const [authForm, setAuthForm] = useState({
+    name: "",
+    email: "",
+    password: "",
+  });
+
   const [loadingReviews, setLoadingReviews] = useState(false);
 
   const [form, setForm] = useState({
@@ -47,13 +75,44 @@ function App() {
     owner: "",
   });
 
+  const [menuOpen, setMenuOpen] = useState(false);
+
+  async function handleAuthSubmit(event) {
+    event.preventDefault();
+
+    setAuthLoading(true);
+    setAuthError("");
+
+    try {
+      const data = await authenticateUser(authMode, authForm);
+
+      if (authMode === "register") {
+        setAuthMode("login");
+        setAuthForm({
+          name: "",
+          email: authForm.email,
+          password: "",
+        });
+        setAuthError("Account created successfully. Please log in.");
+        return;
+      }
+
+      setToken(data.token);
+      setCurrentUser(data.user);
+    } catch (error) {
+      setAuthError(error.message || "Authentication failed.");
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
   // Fetch brand rules
   async function fetchRules() {
     try {
       setLoading(true);
       setError("");
 
-      const response = await fetch(API_URL);
+      const response = await apiRequest(API_URL, {}, token);
 
       if (!response.ok) {
         throw new Error("Could not load brand rules.");
@@ -71,13 +130,16 @@ function App() {
   }
 
   // Fetch saved evidence records
+  // Fetch evidence records
   const fetchEvidence = async () => {
     setLoadingEvidence(true);
     setEvidenceError("");
 
     try {
-      const response = await fetch(
+      const response = await apiRequest(
         `${API_BASE_URL}/api/evidence?brandName=StyleKart`,
+        {},
+        token,
       );
 
       const data = await response.json();
@@ -95,11 +157,42 @@ function App() {
   };
 
   // Load application data
+  // Restore logged-in user and load application data
   useEffect(() => {
-    fetchRules();
-    fetchReviews();
-    fetchEvidence();
-  }, []);
+    async function restoreSession() {
+      if (!token) {
+        setCurrentUser(null);
+        return;
+      }
+
+      try {
+        const response = await apiRequest(
+          `${API_BASE_URL}/api/auth/me`,
+          {},
+          token,
+        );
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(data.message || "Session expired.");
+        }
+
+        setCurrentUser(data.user);
+
+        fetchRules();
+        fetchReviews();
+        fetchEvidence();
+      } catch (error) {
+        logoutUser();
+        setToken(null);
+        setCurrentUser(null);
+        setAuthError("Your session has expired. Please log in again.");
+      }
+    }
+
+    restoreSession();
+  }, [token]);
 
   // Handle brand rule form changes
   function handleChange(event) {
@@ -119,13 +212,17 @@ function App() {
     setError("");
 
     try {
-      const response = await fetch(API_URL, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await apiRequest(
+        API_URL,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(form),
         },
-        body: JSON.stringify(form),
-      });
+        token,
+      );
 
       const data = await response.json();
 
@@ -157,13 +254,17 @@ function App() {
     setEvidenceError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/evidence`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await apiRequest(
+        `${API_BASE_URL}/api/evidence`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(evidenceForm),
         },
-        body: JSON.stringify(evidenceForm),
-      });
+        token,
+      );
 
       const data = await response.json();
 
@@ -193,13 +294,17 @@ function App() {
     setEvidenceError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/evidence/${id}`, {
-        method: "PATCH",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await apiRequest(
+        `${API_BASE_URL}/api/evidence/${id}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({ status }),
         },
-        body: JSON.stringify({ status }),
-      });
+        token,
+      );
 
       const data = await response.json();
 
@@ -233,16 +338,15 @@ function App() {
     setReviewError("");
 
     try {
-      const response = await fetch(`${API_BASE_URL}/api/audit`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      const response = await apiRequest(
+        `${API_BASE_URL}/api/audit`,
+        {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ brandName: "StyleKart", draft }),
         },
-        body: JSON.stringify({
-          brandName: "StyleKart",
-          draft,
-        }),
-      });
+        token,
+      );
 
       const data = await response.json();
 
@@ -267,7 +371,12 @@ function App() {
       setLoadingReviews(true);
       setReviewError("");
 
-      const response = await fetch(`${API_BASE_URL}/api/reviews`);
+      const response = await apiRequest(
+        `${API_BASE_URL}/api/reviews`,
+        {},
+        token,
+      );
+
       const data = await response.json();
 
       if (!response.ok) {
@@ -294,17 +403,22 @@ function App() {
       setReviewError("");
       setReviewMessage("");
 
-      const createResponse = await fetch(`${API_BASE_URL}/api/reviews`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
+      // Create review
+      const createResponse = await apiRequest(
+        `${API_BASE_URL}/api/reviews`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            brandName: "StyleKart",
+            draft,
+            findingsCount: auditResults.findingsCount,
+          }),
         },
-        body: JSON.stringify({
-          brandName: "StyleKart",
-          draft,
-          findingsCount: auditResults.findingsCount,
-        }),
-      });
+        token,
+      );
 
       const createdReview = await createResponse.json();
 
@@ -316,7 +430,8 @@ function App() {
         throw new Error("Review was created but its ID was not returned.");
       }
 
-      const updateResponse = await fetch(
+      // Update review decision
+      const updateResponse = await apiRequest(
         `${API_BASE_URL}/api/reviews/${createdReview.review._id}`,
         {
           method: "PATCH",
@@ -328,6 +443,7 @@ function App() {
             reviewerNote,
           }),
         },
+        token,
       );
 
       const updatedReview = await updateResponse.json();
@@ -350,25 +466,91 @@ function App() {
     }
   }
 
+  if (!token || !currentUser) {
+    return (
+      <Auth
+        mode={authMode}
+        setMode={setAuthMode}
+        form={authForm}
+        setForm={setAuthForm}
+        onSubmit={handleAuthSubmit}
+        loading={authLoading}
+        error={authError}
+      />
+    );
+  }
+
   return (
     <main className="app-container">
       <header className="topbar">
-        <nav className="main-nav" aria-label="Main navigation">
-          <a href="#audit">Audit</a>
-          <a href="#rulebook">Rulebook</a>
-          <a href="#evidence">Evidence</a>
-          <a href="#history">Review History</a>
-        </nav>
+        <div className="header-left">
+          <button
+            type="button"
+            className="menu-toggle"
+            aria-label="Toggle navigation"
+            aria-expanded={menuOpen}
+            onClick={() => setMenuOpen((prev) => !prev)}
+          >
+            ☰
+          </button>
 
-        <div className="brand">
-          <div className="brand-icon">P</div>
-          <div>
-            <h1>ProofBeforePost</h1>
-            <p>Evidence-first brand governance</p>
+          <div className="brand">
+            <div className="brand-icon">P</div>
+            <div>
+              <h1>ProofBeforePost</h1>
+              <p>Evidence-first brand governance</p>
+            </div>
           </div>
         </div>
 
-        <span className="status-badge">● Local workspace</span>
+        <div className="user-controls">
+          <div className="user-info">
+            <strong>{currentUser.name}</strong>
+            <span className={`role-badge ${currentUser.role}`}>
+              {currentUser.role.toUpperCase()}
+            </span>
+          </div>
+
+          <button
+            type="button"
+            className="logout-button"
+            onClick={() => {
+              logoutUser();
+              setToken(null);
+              setCurrentUser(null);
+              setAuthMode("login");
+              setAuthForm({ name: "", email: "", password: "" });
+            }}
+          >
+            Logout
+          </button>
+        </div>
+
+        {menuOpen && (
+          <>
+            <button
+              type="button"
+              className="menu-backdrop"
+              aria-label="Close navigation"
+              onClick={() => setMenuOpen(false)}
+            />
+
+            <nav className="main-nav" aria-label="Main navigation">
+              <a href="#audit" onClick={() => setMenuOpen(false)}>
+                Audit
+              </a>
+              <a href="#rulebook" onClick={() => setMenuOpen(false)}>
+                Rulebook
+              </a>
+              <a href="#evidence" onClick={() => setMenuOpen(false)}>
+                Evidence
+              </a>
+              <a href="#history" onClick={() => setMenuOpen(false)}>
+                Review History
+              </a>
+            </nav>
+          </>
+        )}
       </header>
 
       <section className="welcome">
@@ -538,31 +720,33 @@ function App() {
                 rows="3"
               />
 
-              <div className="review-actions">
-                <button
-                  type="button"
-                  disabled={savingReview}
-                  onClick={() => handleReviewDecision("Approved")}
-                >
-                  Approve
-                </button>
+              {["admin", "reviewer"].includes(currentUser?.role) && (
+                <div className="review-actions">
+                  <button
+                    type="button"
+                    disabled={savingReview}
+                    onClick={() => handleReviewDecision("Approved")}
+                  >
+                    Approve
+                  </button>
 
-                <button
-                  type="button"
-                  disabled={savingReview}
-                  onClick={() => handleReviewDecision("Rejected")}
-                >
-                  Reject
-                </button>
+                  <button
+                    type="button"
+                    disabled={savingReview}
+                    onClick={() => handleReviewDecision("Rejected")}
+                  >
+                    Reject
+                  </button>
 
-                <button
-                  type="button"
-                  disabled={savingReview}
-                  onClick={() => handleReviewDecision("Changes Requested")}
-                >
-                  Request Changes
-                </button>
-              </div>
+                  <button
+                    type="button"
+                    disabled={savingReview}
+                    onClick={() => handleReviewDecision("Changes Requested")}
+                  >
+                    Request Changes
+                  </button>
+                </div>
+              )}
 
               {savingReview && <p>Saving review...</p>}
 
@@ -580,92 +764,94 @@ function App() {
 
       {/* Brand Rules Dashboard */}
       <section className="dashboard">
-        <div className="panel form-panel">
-          <div className="panel-heading">
-            <div>
-              <h3>Create a brand rule</h3>
-              <p>Define what your content must follow.</p>
+        {currentUser?.role === "admin" && (
+          <div className="panel form-panel">
+            <div className="panel-heading">
+              <div>
+                <h3>Create a brand rule</h3>
+                <p>Define what your content must follow.</p>
+              </div>
+              <span className="step-number">01</span>
             </div>
-            <span className="step-number">01</span>
+
+            <form onSubmit={handleSubmit}>
+              <label htmlFor="brandName">Brand name *</label>
+              <input
+                id="brandName"
+                name="brandName"
+                value={form.brandName}
+                onChange={handleChange}
+                required
+                placeholder="e.g. StyleKart"
+              />
+
+              <label htmlFor="ruleType">Rule type *</label>
+              <select
+                id="ruleType"
+                name="ruleType"
+                value={form.ruleType}
+                onChange={handleChange}
+                required
+              >
+                <option value="prohibited_term">Prohibited term</option>
+                <option value="required_phrase">Required phrase</option>
+                <option value="approved_fact">Approved fact / evidence</option>
+              </select>
+
+              <label htmlFor="value">Rule or approved fact *</label>
+              <textarea
+                id="value"
+                name="value"
+                value={form.value}
+                onChange={handleChange}
+                required
+                rows="3"
+                placeholder="Enter the phrase, term, or approved fact"
+              />
+
+              <label htmlFor="explanation">Explanation</label>
+              <textarea
+                id="explanation"
+                name="explanation"
+                value={form.explanation}
+                onChange={handleChange}
+                rows="2"
+                placeholder="Why does this rule matter?"
+              />
+
+              <div className="form-row">
+                <div>
+                  <label htmlFor="source">Evidence source</label>
+                  <input
+                    id="source"
+                    name="source"
+                    value={form.source}
+                    onChange={handleChange}
+                    placeholder="Policy or source URL"
+                  />
+                </div>
+
+                <div>
+                  <label htmlFor="owner">Accountable owner</label>
+                  <input
+                    id="owner"
+                    name="owner"
+                    value={form.owner}
+                    onChange={handleChange}
+                    placeholder="e.g. Marketing team"
+                  />
+                </div>
+              </div>
+
+              <button className="primary-button" type="submit">
+                + Save brand rule
+              </button>
+            </form>
+
+            {message && <p className="success-message">{message}</p>}
+            {error && <p className="error-message">{error}</p>}
           </div>
-
-          <form onSubmit={handleSubmit}>
-            <label htmlFor="brandName">Brand name *</label>
-            <input
-              id="brandName"
-              name="brandName"
-              value={form.brandName}
-              onChange={handleChange}
-              required
-              placeholder="e.g. StyleKart"
-            />
-
-            <label htmlFor="ruleType">Rule type *</label>
-            <select
-              id="ruleType"
-              name="ruleType"
-              value={form.ruleType}
-              onChange={handleChange}
-              required
-            >
-              <option value="prohibited_term">Prohibited term</option>
-              <option value="required_phrase">Required phrase</option>
-              <option value="approved_fact">Approved fact / evidence</option>
-            </select>
-
-            <label htmlFor="value">Rule or approved fact *</label>
-            <textarea
-              id="value"
-              name="value"
-              value={form.value}
-              onChange={handleChange}
-              required
-              rows="3"
-              placeholder="Enter the phrase, term, or approved fact"
-            />
-
-            <label htmlFor="explanation">Explanation</label>
-            <textarea
-              id="explanation"
-              name="explanation"
-              value={form.explanation}
-              onChange={handleChange}
-              rows="2"
-              placeholder="Why does this rule matter?"
-            />
-
-            <div className="form-row">
-              <div>
-                <label htmlFor="source">Evidence source</label>
-                <input
-                  id="source"
-                  name="source"
-                  value={form.source}
-                  onChange={handleChange}
-                  placeholder="Policy or source URL"
-                />
-              </div>
-
-              <div>
-                <label htmlFor="owner">Accountable owner</label>
-                <input
-                  id="owner"
-                  name="owner"
-                  value={form.owner}
-                  onChange={handleChange}
-                  placeholder="e.g. Marketing team"
-                />
-              </div>
-            </div>
-
-            <button className="primary-button" type="submit">
-              + Save brand rule
-            </button>
-          </form>
-
-          {message && <p className="success-message">{message}</p>}
-          {error && <p className="error-message">{error}</p>}
-        </div>
+        )}
 
         {/* Rulebook */}
         <div id="rulebook" className="panel rules-panel">
@@ -732,85 +918,87 @@ function App() {
             <span className="step-number">03</span>
           </div>
 
-          <form className="evidence-form" onSubmit={handleEvidenceSubmit}>
-            <label htmlFor="evidenceBrandName">Brand name *</label>
-            <input
-              id="evidenceBrandName"
-              type="text"
-              value={evidenceForm.brandName}
-              onChange={(event) =>
-                setEvidenceForm({
-                  ...evidenceForm,
-                  brandName: event.target.value,
-                })
-              }
-              required
-            />
+          {["admin", "reviewer"].includes(currentUser?.role) && (
+            <form className="evidence-form" onSubmit={handleEvidenceSubmit}>
+              <label htmlFor="evidenceBrandName">Brand name *</label>
+              <input
+                id="evidenceBrandName"
+                type="text"
+                value={evidenceForm.brandName}
+                onChange={(event) =>
+                  setEvidenceForm({
+                    ...evidenceForm,
+                    brandName: event.target.value,
+                  })
+                }
+                required
+              />
 
-            <label htmlFor="evidenceClaim">Claim *</label>
-            <textarea
-              id="evidenceClaim"
-              rows="2"
-              placeholder="Enter the claim made by the brand"
-              value={evidenceForm.claim}
-              onChange={(event) =>
-                setEvidenceForm({
-                  ...evidenceForm,
-                  claim: event.target.value,
-                })
-              }
-              required
-            />
+              <label htmlFor="evidenceClaim">Claim *</label>
+              <textarea
+                id="evidenceClaim"
+                rows="2"
+                placeholder="Enter the claim made by the brand"
+                value={evidenceForm.claim}
+                onChange={(event) =>
+                  setEvidenceForm({
+                    ...evidenceForm,
+                    claim: event.target.value,
+                  })
+                }
+                required
+              />
 
-            <label htmlFor="evidenceText">Supporting evidence *</label>
-            <textarea
-              id="evidenceText"
-              rows="3"
-              placeholder="Explain the evidence supporting this claim"
-              value={evidenceForm.evidenceText}
-              onChange={(event) =>
-                setEvidenceForm({
-                  ...evidenceForm,
-                  evidenceText: event.target.value,
-                })
-              }
-              required
-            />
+              <label htmlFor="evidenceText">Supporting evidence *</label>
+              <textarea
+                id="evidenceText"
+                rows="3"
+                placeholder="Explain the evidence supporting this claim"
+                value={evidenceForm.evidenceText}
+                onChange={(event) =>
+                  setEvidenceForm({
+                    ...evidenceForm,
+                    evidenceText: event.target.value,
+                  })
+                }
+                required
+              />
 
-            <label htmlFor="evidenceSource">
-              Evidence source URL (optional)
-            </label>
-            <input
-              id="evidenceSource"
-              type="url"
-              placeholder="https://example.com/policy"
-              value={evidenceForm.source}
-              onChange={(event) =>
-                setEvidenceForm({
-                  ...evidenceForm,
-                  source: event.target.value,
-                })
-              }
-            />
+              <label htmlFor="evidenceSource">
+                Evidence source URL (optional)
+              </label>
+              <input
+                id="evidenceSource"
+                type="url"
+                placeholder="https://example.com/policy"
+                value={evidenceForm.source}
+                onChange={(event) =>
+                  setEvidenceForm({
+                    ...evidenceForm,
+                    source: event.target.value,
+                  })
+                }
+              />
 
-            <label htmlFor="evidenceOwner">Accountable owner</label>
-            <input
-              id="evidenceOwner"
-              type="text"
-              placeholder="Marketing Team"
-              value={evidenceForm.owner}
-              onChange={(event) =>
-                setEvidenceForm({
-                  ...evidenceForm,
-                  owner: event.target.value,
-                })
-              }
-            />
+              <label htmlFor="evidenceOwner">Accountable owner</label>
+              <input
+                id="evidenceOwner"
+                type="text"
+                placeholder="Marketing Team"
+                value={evidenceForm.owner}
+                onChange={(event) =>
+                  setEvidenceForm({
+                    ...evidenceForm,
+                    owner: event.target.value,
+                  })
+                }
+              />
 
-            <button type="submit" className="primary-button">
-              + Submit Evidence
-            </button>
-          </form>
+              <button type="submit" className="primary-button">
+                + Submit Evidence
+              </button>
+            </form>
+          )}
 
           {evidenceMessage && (
             <p className="success-message">{evidenceMessage}</p>
@@ -922,37 +1110,50 @@ function App() {
                               </p>
                             </div>
 
-                            <div className="evidence-actions">
-                              <button
-                                type="button"
-                                disabled={evidence.status === "Approved"}
-                                onClick={() =>
-                                  handleEvidenceStatus(evidence._id, "Approved")
-                                }
-                              >
-                                Approve
-                              </button>
+                            {["admin", "reviewer"].includes(
+                              currentUser?.role,
+                            ) && (
+                              <div className="evidence-actions">
+                                <button
+                                  type="button"
+                                  disabled={evidence.status === "Approved"}
+                                  onClick={() =>
+                                    handleEvidenceStatus(
+                                      evidence._id,
+                                      "Approved",
+                                    )
+                                  }
+                                >
+                                  Approve
+                                </button>
 
-                              <button
-                                type="button"
-                                disabled={evidence.status === "Rejected"}
-                                onClick={() =>
-                                  handleEvidenceStatus(evidence._id, "Rejected")
-                                }
-                              >
-                                Reject
-                              </button>
+                                <button
+                                  type="button"
+                                  disabled={evidence.status === "Rejected"}
+                                  onClick={() =>
+                                    handleEvidenceStatus(
+                                      evidence._id,
+                                      "Rejected",
+                                    )
+                                  }
+                                >
+                                  Reject
+                                </button>
 
-                              <button
-                                type="button"
-                                disabled={evidence.status === "Pending"}
-                                onClick={() =>
-                                  handleEvidenceStatus(evidence._id, "Pending")
-                                }
-                              >
-                                Set Pending
-                              </button>
-                            </div>
+                                <button
+                                  type="button"
+                                  disabled={evidence.status === "Pending"}
+                                  onClick={() =>
+                                    handleEvidenceStatus(
+                                      evidence._id,
+                                      "Pending",
+                                    )
+                                  }
+                                >
+                                  Set Pending
+                                </button>
+                              </div>
+                            )}
                           </article>
                         ))}
                       </div>

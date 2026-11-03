@@ -7,6 +7,13 @@ require("dotenv").config();
 const Review = require("./models/Review");
 const Evidence = require("./models/Evidence");
 
+// Authentication dependencies
+const User = require("./models/User");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
+
+const { authenticateToken, authorizeRoles } = require("./middleware/auth");
+
 const app = express();
 const PORT = process.env.PORT || 8080;
 
@@ -234,7 +241,7 @@ app.get("/", (req, res) => {
 // ==========================================
 
 // Get all brand rules
-app.get("/api/rules", async (req, res) => {
+app.get("/api/rules", authenticateToken, async (req, res) => {
   try {
     const rules = await Rule.find().sort({ createdAt: -1 });
 
@@ -249,58 +256,63 @@ app.get("/api/rules", async (req, res) => {
 });
 
 // Create a brand rule
-app.post("/api/rules", async (req, res) => {
-  try {
-    const {
-      brandName,
-      ruleType,
-      value,
-      explanation,
-      source,
-      owner,
-      reviewDate,
-    } = req.body;
+app.post(
+  "/api/rules",
+  authenticateToken,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const {
+        brandName,
+        ruleType,
+        value,
+        explanation,
+        source,
+        owner,
+        reviewDate,
+      } = req.body;
 
-    if (!brandName?.trim() || !ruleType || !value?.trim()) {
-      return res.status(400).json({
-        message: "Brand name, rule type, and value are required.",
+      if (!brandName?.trim() || !ruleType || !value?.trim()) {
+        return res.status(400).json({
+          message: "Brand name, rule type, and value are required.",
+        });
+      }
+
+      const rule = await Rule.create({
+        brandName: brandName.trim(),
+        ruleType,
+        value: value.trim(),
+        explanation,
+        source,
+        owner,
+        reviewDate: reviewDate || null,
+      });
+
+      res.status(201).json({
+        message: "Brand rule created successfully!",
+        rule,
+      });
+    } catch (error) {
+      if (error.name === "ValidationError") {
+        return res.status(400).json({
+          message: error.message,
+        });
+      }
+
+      console.error("Create rule failed:", error.message);
+
+      res.status(500).json({
+        message: "Failed to create brand rule.",
       });
     }
-
-    const rule = await Rule.create({
-      brandName: brandName.trim(),
-      ruleType,
-      value: value.trim(),
-      explanation,
-      source,
-      owner,
-      reviewDate: reviewDate || null,
-    });
-
-    res.status(201).json({
-      message: "Brand rule created successfully!",
-      rule,
-    });
-  } catch (error) {
-    if (error.name === "ValidationError") {
-      return res.status(400).json({
-        message: error.message,
-      });
-    }
-
-    console.error("Create rule failed:", error.message);
-
-    res.status(500).json({
-      message: "Failed to create brand rule.",
-    });
-  }
-});
+  },
+);
 
 // ==========================================
 // DRAFT AUDIT API
 // ==========================================
 
-app.post("/api/audit", async (req, res) => {
+app.post("/api/audit", authenticateToken, async (req, res) => {
   try {
     const { brandName, draft } = req.body;
 
@@ -549,46 +561,51 @@ app.post("/api/audit", async (req, res) => {
 // ==========================================
 
 // Create a review record after auditing a draft
-app.post("/api/reviews", async (req, res) => {
-  try {
-    const { brandName, draft, findingsCount } = req.body;
+app.post(
+  "/api/reviews",
+  authenticateToken,
+  authorizeRoles("reviewer", "admin"),
+  async (req, res) => {
+    try {
+      const { brandName, draft, findingsCount } = req.body;
 
-    if (!brandName?.trim() || !draft?.trim()) {
-      return res.status(400).json({
-        message: "Brand name and draft are required.",
+      if (!brandName?.trim() || !draft?.trim()) {
+        return res.status(400).json({
+          message: "Brand name and draft are required.",
+        });
+      }
+
+      if (
+        findingsCount !== undefined &&
+        (!Number.isInteger(findingsCount) || findingsCount < 0)
+      ) {
+        return res.status(400).json({
+          message: "Findings count must be a non-negative integer.",
+        });
+      }
+
+      const review = await Review.create({
+        brandName: brandName.trim(),
+        draft: draft.trim(),
+        findingsCount: findingsCount ?? 0,
+      });
+
+      res.status(201).json({
+        message: "Review created successfully.",
+        review,
+      });
+    } catch (error) {
+      console.error("Create review failed:", error.message);
+
+      res.status(500).json({
+        message: "Failed to create review.",
       });
     }
-
-    if (
-      findingsCount !== undefined &&
-      (!Number.isInteger(findingsCount) || findingsCount < 0)
-    ) {
-      return res.status(400).json({
-        message: "Findings count must be a non-negative integer.",
-      });
-    }
-
-    const review = await Review.create({
-      brandName: brandName.trim(),
-      draft: draft.trim(),
-      findingsCount: findingsCount ?? 0,
-    });
-
-    res.status(201).json({
-      message: "Review created successfully.",
-      review,
-    });
-  } catch (error) {
-    console.error("Create review failed:", error.message);
-
-    res.status(500).json({
-      message: "Failed to create review.",
-    });
-  }
-});
+  },
+);
 
 // Get saved review records
-app.get("/api/reviews", async (req, res) => {
+app.get("/api/reviews", authenticateToken, async (req, res) => {
   try {
     const reviews = await Review.find().sort({
       createdAt: -1,
@@ -605,82 +622,87 @@ app.get("/api/reviews", async (req, res) => {
 });
 
 // Update a review decision
-app.patch("/api/reviews/:id", async (req, res) => {
-  try {
-    const { status, reviewerNote } = req.body;
+app.patch(
+  "/api/reviews/:id",
+  authenticateToken,
+  authorizeRoles("reviewer", "admin"),
+  async (req, res) => {
+    try {
+      const { status, reviewerNote } = req.body;
 
-    const allowedStatuses = [
-      "Pending",
-      "Approved",
-      "Rejected",
-      "Changes Requested",
-    ];
+      const allowedStatuses = [
+        "Pending",
+        "Approved",
+        "Rejected",
+        "Changes Requested",
+      ];
 
-    if (status !== undefined && !allowedStatuses.includes(status)) {
-      return res.status(400).json({
-        message: "Invalid review status.",
+      if (status !== undefined && !allowedStatuses.includes(status)) {
+        return res.status(400).json({
+          message: "Invalid review status.",
+        });
+      }
+
+      if (reviewerNote !== undefined && typeof reviewerNote !== "string") {
+        return res.status(400).json({
+          message: "Reviewer note must be a string.",
+        });
+      }
+
+      if (status === undefined && reviewerNote === undefined) {
+        return res.status(400).json({
+          message: "Provide a status or reviewer note to update.",
+        });
+      }
+
+      const updates = {};
+
+      if (status !== undefined) {
+        updates.status = status;
+      }
+
+      if (reviewerNote !== undefined) {
+        updates.reviewerNote = reviewerNote.trim();
+      }
+
+      const review = await Review.findByIdAndUpdate(
+        req.params.id,
+        { $set: updates },
+        { new: true, runValidators: true },
+      );
+
+      if (!review) {
+        return res.status(404).json({
+          message: "Review not found.",
+        });
+      }
+
+      res.json({
+        message: "Review updated successfully.",
+        review,
+      });
+    } catch (error) {
+      if (error.name === "CastError") {
+        return res.status(400).json({
+          message: "Invalid review ID.",
+        });
+      }
+
+      console.error("Update review failed:", error.message);
+
+      res.status(500).json({
+        message: "Failed to update review.",
       });
     }
-
-    if (reviewerNote !== undefined && typeof reviewerNote !== "string") {
-      return res.status(400).json({
-        message: "Reviewer note must be a string.",
-      });
-    }
-
-    if (status === undefined && reviewerNote === undefined) {
-      return res.status(400).json({
-        message: "Provide a status or reviewer note to update.",
-      });
-    }
-
-    const updates = {};
-
-    if (status !== undefined) {
-      updates.status = status;
-    }
-
-    if (reviewerNote !== undefined) {
-      updates.reviewerNote = reviewerNote.trim();
-    }
-
-    const review = await Review.findByIdAndUpdate(
-      req.params.id,
-      { $set: updates },
-      { new: true, runValidators: true },
-    );
-
-    if (!review) {
-      return res.status(404).json({
-        message: "Review not found.",
-      });
-    }
-
-    res.json({
-      message: "Review updated successfully.",
-      review,
-    });
-  } catch (error) {
-    if (error.name === "CastError") {
-      return res.status(400).json({
-        message: "Invalid review ID.",
-      });
-    }
-
-    console.error("Update review failed:", error.message);
-
-    res.status(500).json({
-      message: "Failed to update review.",
-    });
-  }
-});
+  },
+);
 
 // ==========================================
 // EVIDENCE APIs
 // ==========================================
 
 // GET: Retrieve saved evidence
-app.get("/api/evidence", async (req, res) => {
+app.get("/api/evidence", authenticateToken, async (req, res) => {
   try {
     const { brandName } = req.query;
 
@@ -701,133 +723,331 @@ app.get("/api/evidence", async (req, res) => {
 });
 
 // POST: Save new evidence
-app.post("/api/evidence", async (req, res) => {
-  try {
-    const { brandName, claim, evidenceText, source, owner } = req.body;
+app.post(
+  "/api/evidence",
+  authenticateToken,
+  authorizeRoles("reviewer", "admin"),
+  async (req, res) => {
+    try {
+      const { brandName, claim, evidenceText, source, owner } = req.body;
 
-    if (!brandName?.trim() || !claim?.trim() || !evidenceText?.trim()) {
+      if (!brandName?.trim() || !claim?.trim() || !evidenceText?.trim()) {
+        return res.status(400).json({
+          message: "Brand name, claim and evidence text are required.",
+        });
+      }
+
+      const newEvidence = await Evidence.create({
+        brandName: brandName.trim(),
+        claim: claim.trim(),
+        evidenceText: evidenceText.trim(),
+        source: source?.trim() || "",
+        owner: owner?.trim() || "",
+        status: "Pending",
+      });
+
+      res.status(201).json({
+        message: "Evidence submitted successfully.",
+        evidence: newEvidence,
+      });
+    } catch (error) {
+      console.error("Save evidence error:", error.message);
+
+      res.status(500).json({
+        message: "Failed to save evidence.",
+      });
+    }
+  },
+);
+
+// PATCH: Update evidence details or review status
+app.patch(
+  "/api/evidence/:id",
+  authenticateToken,
+  authorizeRoles("reviewer", "admin"),
+  async (req, res) => {
+    try {
+      const { status, claim, evidenceText, source, owner } = req.body;
+
+      const updates = {};
+
+      if (status !== undefined) {
+        const allowedStatuses = ["Pending", "Approved", "Rejected"];
+
+        if (!allowedStatuses.includes(status)) {
+          return res.status(400).json({
+            message: "Invalid evidence status.",
+          });
+        }
+
+        updates.status = status;
+      }
+
+      if (claim !== undefined) {
+        if (typeof claim !== "string" || !claim.trim()) {
+          return res.status(400).json({
+            message: "Claim must be a non-empty string.",
+          });
+        }
+
+        updates.claim = claim.trim();
+      }
+
+      if (evidenceText !== undefined) {
+        if (typeof evidenceText !== "string" || !evidenceText.trim()) {
+          return res.status(400).json({
+            message: "Evidence text must be a non-empty string.",
+          });
+        }
+
+        updates.evidenceText = evidenceText.trim();
+      }
+
+      if (source !== undefined) {
+        if (typeof source !== "string") {
+          return res.status(400).json({
+            message: "Source must be a string.",
+          });
+        }
+
+        updates.source = source.trim();
+      }
+
+      if (owner !== undefined) {
+        if (typeof owner !== "string") {
+          return res.status(400).json({
+            message: "Owner must be a string.",
+          });
+        }
+
+        updates.owner = owner.trim();
+      }
+
+      if (Object.keys(updates).length === 0) {
+        return res.status(400).json({
+          message: "No valid fields provided for update.",
+        });
+      }
+
+      const evidence = await Evidence.findByIdAndUpdate(
+        req.params.id,
+        { $set: updates },
+        { new: true, runValidators: true },
+      );
+
+      if (!evidence) {
+        return res.status(404).json({
+          message: "Evidence not found.",
+        });
+      }
+
+      res.json({
+        message: "Evidence updated successfully.",
+        evidence,
+      });
+    } catch (error) {
+      if (error.name === "CastError") {
+        return res.status(400).json({
+          message: "Invalid evidence ID.",
+        });
+      }
+
+      console.error("Update evidence failed:", error.message);
+
+      res.status(500).json({
+        message: "Failed to update evidence.",
+      });
+    }
+  },
+);
+
+// ==========================================
+// AUTHENTICATION ROUTES
+// ==========================================
+
+// REGISTER
+app.post("/api/auth/register", async (req, res) => {
+  try {
+    const { name, email, password } = req.body;
+
+    if (!name?.trim() || !email?.trim() || !password) {
       return res.status(400).json({
-        message: "Brand name, claim and evidence text are required.",
+        message: "Name, email and password are required.",
       });
     }
 
-    const newEvidence = await Evidence.create({
-      brandName: brandName.trim(),
-      claim: claim.trim(),
-      evidenceText: evidenceText.trim(),
-      source: source?.trim() || "",
-      owner: owner?.trim() || "",
-      status: "Pending",
+    if (password.length < 8) {
+      return res.status(400).json({
+        message: "Password must contain at least 8 characters.",
+      });
+    }
+
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const existingUser = await User.findOne({
+      email: normalizedEmail,
+    });
+
+    if (existingUser) {
+      return res.status(409).json({
+        message: "An account with this email already exists.",
+      });
+    }
+
+    const hashedPassword = await bcrypt.hash(password, 12);
+
+    const user = await User.create({
+      name: name.trim(),
+      email: normalizedEmail,
+      password: hashedPassword,
+      role: "viewer",
     });
 
     res.status(201).json({
-      message: "Evidence submitted successfully.",
-      evidence: newEvidence,
+      message: "Account created successfully.",
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
-    console.error("Save evidence error:", error.message);
+    console.error("Registration failed:", error.message);
 
     res.status(500).json({
-      message: "Failed to save evidence.",
+      message: "Unable to create account.",
     });
   }
 });
 
-// PATCH: Update evidence details or review status
-app.patch("/api/evidence/:id", async (req, res) => {
+// LOGIN
+app.post("/api/auth/login", async (req, res) => {
   try {
-    const { status, claim, evidenceText, source, owner } = req.body;
+    const { email, password } = req.body;
 
-    const updates = {};
-
-    if (status !== undefined) {
-      const allowedStatuses = ["Pending", "Approved", "Rejected"];
-
-      if (!allowedStatuses.includes(status)) {
-        return res.status(400).json({
-          message: "Invalid evidence status.",
-        });
-      }
-
-      updates.status = status;
-    }
-
-    if (claim !== undefined) {
-      if (typeof claim !== "string" || !claim.trim()) {
-        return res.status(400).json({
-          message: "Claim must be a non-empty string.",
-        });
-      }
-
-      updates.claim = claim.trim();
-    }
-
-    if (evidenceText !== undefined) {
-      if (typeof evidenceText !== "string" || !evidenceText.trim()) {
-        return res.status(400).json({
-          message: "Evidence text must be a non-empty string.",
-        });
-      }
-
-      updates.evidenceText = evidenceText.trim();
-    }
-
-    if (source !== undefined) {
-      if (typeof source !== "string") {
-        return res.status(400).json({
-          message: "Source must be a string.",
-        });
-      }
-
-      updates.source = source.trim();
-    }
-
-    if (owner !== undefined) {
-      if (typeof owner !== "string") {
-        return res.status(400).json({
-          message: "Owner must be a string.",
-        });
-      }
-
-      updates.owner = owner.trim();
-    }
-
-    if (Object.keys(updates).length === 0) {
+    if (!email?.trim() || !password) {
       return res.status(400).json({
-        message: "No valid fields provided for update.",
+        message: "Email and password are required.",
       });
     }
 
-    const evidence = await Evidence.findByIdAndUpdate(
-      req.params.id,
-      { $set: updates },
-      { new: true, runValidators: true },
+    const user = await User.findOne({
+      email: email.trim().toLowerCase(),
+    });
+
+    if (!user) {
+      return res.status(401).json({
+        message: "Invalid email or password.",
+      });
+    }
+
+    const passwordMatches = await bcrypt.compare(password, user.password);
+
+    if (!passwordMatches) {
+      return res.status(401).json({
+        message: "Invalid email or password.",
+      });
+    }
+
+    const token = jwt.sign(
+      {
+        id: user._id.toString(),
+        email: user.email,
+        role: user.role,
+      },
+      process.env.JWT_SECRET,
+      { expiresIn: "8h" },
     );
 
-    if (!evidence) {
-      return res.status(404).json({
-        message: "Evidence not found.",
-      });
-    }
-
     res.json({
-      message: "Evidence updated successfully.",
-      evidence,
+      message: "Login successful.",
+      token,
+      user: {
+        id: user._id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+      },
     });
   } catch (error) {
-    if (error.name === "CastError") {
-      return res.status(400).json({
-        message: "Invalid evidence ID.",
-      });
-    }
-
-    console.error("Update evidence failed:", error.message);
+    console.error("Login failed:", error.message);
 
     res.status(500).json({
-      message: "Failed to update evidence.",
+      message: "Unable to log in.",
     });
   }
 });
+
+// GET CURRENT USER
+app.get("/api/auth/me", authenticateToken, async (req, res) => {
+  try {
+    const user = await User.findById(req.user.id).select("-password");
+
+    if (!user) {
+      return res.status(404).json({
+        message: "User not found.",
+      });
+    }
+
+    res.json({ user });
+  } catch (error) {
+    res.status(500).json({
+      message: "Unable to retrieve user.",
+    });
+  }
+});
+
+// ==========================================
+// ADMIN: UPDATE USER ROLE
+// ==========================================
+
+app.patch(
+  "/api/admin/users/:id/role",
+  authenticateToken,
+  authorizeRoles("admin"),
+  async (req, res) => {
+    try {
+      const { role } = req.body;
+      const allowedRoles = ["viewer", "reviewer", "admin"];
+
+      if (!allowedRoles.includes(role)) {
+        return res.status(400).json({
+          message: "Invalid role.",
+        });
+      }
+
+      const user = await User.findByIdAndUpdate(
+        req.params.id,
+        { $set: { role } },
+        { new: true, runValidators: true },
+      ).select("-password");
+
+      if (!user) {
+        return res.status(404).json({
+          message: "User not found.",
+        });
+      }
+
+      res.json({
+        message: "User role updated successfully.",
+        user,
+      });
+    } catch (error) {
+      if (error.name === "CastError") {
+        return res.status(400).json({
+          message: "Invalid user ID.",
+        });
+      }
+
+      console.error("Role update failed:", error.message);
+
+      res.status(500).json({
+        message: "Failed to update user role.",
+      });
+    }
+  },
+);
 
 // ==========================================
 // START SERVER
@@ -839,7 +1059,40 @@ async function startServer() {
       throw new Error("MONGODB_URI is missing from environment variables.");
     }
 
+    if (!process.env.JWT_SECRET) {
+      throw new Error("JWT_SECRET is missing from environment variables.");
+    }
+
     await mongoose.connect(process.env.MONGODB_URI);
+
+    // Create initial admin account if it does not exist
+    if (
+      process.env.ADMIN_NAME &&
+      process.env.ADMIN_EMAIL &&
+      process.env.ADMIN_PASSWORD
+    ) {
+      const adminEmail = process.env.ADMIN_EMAIL.trim().toLowerCase();
+
+      const existingAdmin = await User.findOne({ email: adminEmail });
+
+      if (!existingAdmin) {
+        const hashedPassword = await bcrypt.hash(
+          process.env.ADMIN_PASSWORD,
+          12,
+        );
+
+        await User.create({
+          name: process.env.ADMIN_NAME,
+          email: adminEmail,
+          password: hashedPassword,
+          role: "admin",
+        });
+
+        console.log("Initial admin account created successfully!");
+      } else {
+        console.log("Admin account already exists.");
+      }
+    }
 
     console.log("MongoDB connected successfully!");
 
