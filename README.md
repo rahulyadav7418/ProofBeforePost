@@ -2,216 +2,306 @@
 
 ### Evidence-first brand governance for safer content publishing
 
-**Audit marketing copy against brand rules, review explainable findings,
-and keep a record of human decisions --- before content goes live.**
+**Audit marketing copy against brand rules, compare claims with supporting evidence, review explainable findings, and keep a record of human decisions — before content goes live.**
 
-[![Live
-Demo](https://img.shields.io/badge/Live-Demo-0A7B83?style=for-the-badge)](https://proof-before-post-ten.vercel.app)
-[![Source
-Code](https://img.shields.io/badge/Source-GitHub-181717?style=for-the-badge&logo=github)](https://github.com/rahulyadav7418/ProofBeforePost)
-:::
+[![Live Demo](https://img.shields.io/badge/Live-Demo-0A7B83?style=for-the-badge)](https://proof-before-post-ten.vercel.app)
+[![Source Code](https://img.shields.io/badge/Source-GitHub-181717?style=for-the-badge\&logo=github)](https://github.com/rahulyadav7418/ProofBeforePost)
 
-------------------------------------------------------------------------
+---
 
-## The problem
+## The Problem
 
-Marketing content can accidentally include prohibited wording or claims
-that do not match a company's policies. Catching these issues manually
-can be inconsistent, especially when teams need to explain who reviewed
-a draft and what decision was made.
+Marketing content can accidentally include prohibited wording or claims that do not match a company's policies. Catching these issues manually can be inconsistent, especially when teams need to explain who reviewed a draft, what evidence was considered, and what decision was made.
 
-## The solution
+## The Solution
 
-**ProofBeforePost** is a text-first content auditing prototype that
-helps a reviewer check a draft against a configurable brand rulebook
-before publication. It flags configured wording violations, explains the
-detected matches, and lets a human reviewer record a decision and note.
+**ProofBeforePost** is an evidence-first content auditing platform that helps teams review marketing content against configured brand rules and available supporting evidence before publication.
 
-It is designed to support human review---not to publish content
-automatically or replace a legal, compliance, or subject-matter expert.
+It identifies configured wording violations, highlights potential claim-to-evidence matches and conflicts, and provides explanations and suggested actions.
 
-## Live demo
+The platform also introduces authentication, role-based permissions, evidence management, and human review workflows.
+
+It supports human review — not automatic publishing or replacement of legal, compliance, or subject-matter experts.
+
+## Live Demo
 
 **Try it:** https://proof-before-post-ten.vercel.app
 
-1.  Open the **Brand Rulebook** and review the configured rules.
-2.  Enter a sample draft in the audit area.
-3.  Run the audit to see any detected rule violations.
-4.  Review the findings and record a decision with a note.
-5.  Open **Review History** to see saved review records.
+1. Sign in to the application.
+2. Open the Brand Rulebook and review configured rules.
+3. Enter sample marketing content in the audit area.
+4. Run the audit to identify potential issues.
+5. Examine findings and their supporting evidence.
+6. Submit or review evidence according to your assigned role.
+7. Record review decisions and notes.
+8. Open Review History to see saved review records.
 
-### Example rulebook
+## Example Rulebook
 
 The current demo includes example rules such as:
 
--   **Prohibited wording:** `guaranteed success`,
-    `100% guaranteed results`
--   **Required phrase:** `Terms and conditions apply`
--   **Approved policy fact:**
-    `Free delivery is available only on orders above ₹399.`
+* **Prohibited wording:** `guaranteed success`, `100% guaranteed results`
+* **Required phrase:** `Terms and conditions apply`
+* **Approved policy fact:** `Free delivery is available only on orders above ₹399.`
 
-These are demonstration rules, not universal legal or business
-requirements.
+These are demonstration rules, not universal legal or business requirements.
 
-## Features implemented
+## Features Implemented
 
--   **Brand Rulebook** --- view the rules currently configured for the
-    demo.
--   **Pre-publication text audit** --- scan draft text for supported
-    rule matches.
--   **Explainable findings** --- show the detected wording and the
-    relevant rule.
--   **Human review workflow** --- record a review decision and reviewer
-    note.
--   **Review history** --- retrieve saved review decisions from the
-    backend.
--   **Deployed full-stack demo** --- React frontend with an Express API
-    and MongoDB persistence.
+### 1. Brand Rulebook
 
-## How it works
+* View configured brand rules.
+* Restrict brand rule creation to authorized administrators.
 
-``` text
-Draft content
-     |
-     v
-Run configured text checks
-     |
-     v
-Review detected findings
-     |
-     v
-Human reviewer records decision + note
-     |
-     v
-Decision saved and visible in review history
+### 2. Pre-publication Content Audit
+
+* Scan draft text against supported brand rules.
+* Identify configured wording violations.
+* Display relevant findings and explanations.
+
+### 3. Claim-to-Evidence Consistency Checks
+
+* Compare draft claims against approved evidence records.
+* Identify potential claim matches.
+* Detect missing numerical conditions.
+* Flag possible conflicts between draft claims and approved evidence.
+* Display severity, explanations, and suggested actions.
+
+### 4. Authentication and Role-Based Access
+
+* User registration and login.
+* Password hashing using bcrypt.
+* JWT-based authentication.
+* Admin, Reviewer, and Viewer roles.
+* Backend-enforced permissions for protected operations.
+* Admin-controlled user role management.
+
+### 5. Evidence Management
+
+* Submit supporting evidence.
+* Track evidence review status.
+* Allow authorized users to review submitted evidence.
+* Approve, reject, or return evidence to pending status.
+
+### 6. Human Review and Review History
+
+* Review audit findings before making decisions.
+* Record human review decisions.
+* View saved review activity.
+
+### 7. Deployed Full-Stack Application
+
+* React frontend.
+* Express and Node.js backend.
+* MongoDB persistence.
+* Frontend hosted on Vercel and backend hosted on Render.
+
+## User Roles
+
+| Role     | Access                                                                        |
+| -------- | ----------------------------------------------------------------------------- |
+| Admin    | Manage user roles, create brand rules, and access authorized review features  |
+| Reviewer | Submit evidence and make review decisions                                     |
+| Viewer   | View available information and run audits without modifying protected records |
+
+Permissions are checked by the backend, not only by hiding frontend controls.
+
+## How It Works
+
+```text
+             User Login
+                 |
+                 v
+          Role Verification
+                 |
+                 v
+           Draft Content
+                 |
+                 v
+       Run Configured Checks
+                 |
+                 v
+      Compare Available Evidence
+                 |
+                 v
+        Display Audit Findings
+                 |
+                 v
+       Human Reviewer Examines
+                 |
+                 v
+       Decision + Review Note
+                 |
+                 v
+         Saved Review History
 ```
 
-The current checks are deterministic and depend on the rules implemented
-in the application. A finding is a review signal, not a definitive legal
-conclusion.
+The current checks are deterministic and depend on the rules and evidence comparison logic implemented in the application.
 
-## Technology stack
+A finding is a review signal, not a definitive legal or factual conclusion.
 
-  Layer              Technology
-  ------------------ -------------------------
-  Frontend           React, Vite
-  Backend            Node.js, Express
-  Database           MongoDB Atlas, Mongoose
-  Frontend hosting   Vercel
-  Backend hosting    Render
+## Technology Stack
+
+| Layer            | Technology              |
+| ---------------- | ----------------------- |
+| Frontend         | React, Vite, JavaScript |
+| Backend          | Node.js, Express.js     |
+| Database         | MongoDB Atlas, Mongoose |
+| Authentication   | JWT, bcryptjs           |
+| Frontend Hosting | Vercel                  |
+| Backend Hosting  | Render                  |
 
 ## Architecture
 
--   The React/Vite client provides the rulebook, audit, review, and
-    history interface.
--   The Express API handles backend requests.
--   Mongoose connects the backend to MongoDB for persisted review data.
--   The deployed frontend communicates with the deployed backend API.
+* The React/Vite client provides the authentication, rulebook, audit, evidence, review, and history interfaces.
+* The Express API handles application requests and protected operations.
+* JWT middleware authenticates users.
+* Role-based middleware enforces permissions.
+* Mongoose connects the backend to MongoDB.
+* The deployed frontend communicates with the deployed backend API.
 
-## Run locally
+## Run Locally
 
 ### Prerequisites
 
--   Node.js and npm
--   A MongoDB connection string (for example, a MongoDB Atlas connection
-    string)
+* Node.js and npm
+* Git
+* MongoDB connection string, such as MongoDB Atlas
 
-### 1. Clone the repository
+### 1. Clone the Repository
 
-``` bash
+```bash
 git clone https://github.com/rahulyadav7418/ProofBeforePost.git
+
 cd ProofBeforePost
 ```
 
-### 2. Start the backend
+### 2. Start the Backend
 
-``` bash
+```bash
 cd server
+
 npm install
 ```
 
-Create a `.env` file in the `server` directory using the variable names
-expected by the backend code. At minimum, configure the MongoDB
-connection string and the port if the application requires it. **Check
-the server source for the exact environment-variable names; do not
-commit secrets.**
+Create a `.env` file inside the `server` directory:
 
-Then start the server using the script defined in `server/package.json`,
-for example:
-
-``` bash
-npm start
+```env
+PORT=8080
+MONGODB_URI=your_mongodb_connection_string
+JWT_SECRET=your_jwt_secret
+ADMIN_NAME=Your Admin Name
+ADMIN_EMAIL=your_admin_email
+ADMIN_PASSWORD=your_admin_password
 ```
 
-If `npm start` is not defined, use the development script available in
-that package.
+Start the backend:
 
-### 3. Start the frontend
-
-Open a second terminal:
-
-``` bash
-cd client
-npm install
+```bash
 npm run dev
 ```
 
-Vite will print the local development URL in the terminal. Ensure the
-frontend API base URL points to your local backend when developing
-locally; the deployed build currently uses the hosted API.
+The backend runs on:
 
-> **Configuration note:** Local setup may require adjusting the frontend
-> API base URL and backend environment variables to match your local
-> environment.
+```text
+http://localhost:8080
+```
 
-## Current limitations
+### 3. Start the Frontend
+
+Open a second terminal:
+
+```bash
+cd client
+
+npm install
+
+npm run dev
+```
+
+Vite will display the frontend development URL in the terminal. Usually:
+
+```text
+http://localhost:5173
+```
+
+Ensure the frontend API configuration points to your local backend when running locally.
+
+**Important:** Never commit `.env` files, database credentials, JWT secrets, or administrative passwords to GitHub.
+
+## Improvements After Round 2
+
+### 1. Claim-to-Evidence Consistency Checks — Implemented
+
+Added deterministic checks to compare draft claims against approved evidence records.
+
+The system identifies potential matches, missing numerical conditions, and possible conflicts. Findings include explanations and suggested actions to support human review.
+
+### 2. Authentication and Role-Based Access — Implemented
+
+Introduced user authentication, password hashing, JWT authorization, and Admin, Reviewer, and Viewer roles.
+
+Protected backend operations enforce role permissions. Administrative user-role management is also available.
+
+### 3. Explainable AI-Assisted Review — Not Completed
+
+External AI model integration was not completed during this round.
+
+The current platform provides explainable deterministic audit findings and keeps final decisions under human control. External AI-assisted analysis remains a future enhancement.
+
+## Testing
+
+The application was tested in local and deployed environments.
+
+| Test Scenario                                       | Result |
+| --------------------------------------------------- | ------ |
+| User login and authentication                       | Passed |
+| Admin-only brand rule creation restriction          | Passed |
+| Reviewer evidence submission                        | Passed |
+| Viewer restriction on protected evidence submission | Passed |
+| Protected API access using JWT                      | Tested |
+| Approved claim matching                             | Passed |
+| Conflicting numerical condition detection           | Passed |
+| Missing numerical condition detection               | Passed |
+| Production reviewer-role verification               | Passed |
+
+## Current Limitations
 
 This is a working prototype, and its boundaries matter:
 
--   **Rule-based detection:** the audit only detects patterns and rules
-    supported by the current implementation. It does not understand
-    every claim or context.
--   **No guaranteed semantic fact-checking:** a statement that
-    contradicts an approved policy fact may not be flagged unless a
-    corresponding check is implemented.
--   **No evidence verification:** the current demo does not
-    independently validate external sources, source freshness, or
-    whether evidence is authoritative.
--   **No AI-based review claim:** do not treat the current audit as an
-    AI-powered semantic or tone review.
--   **Human decision required:** findings need human interpretation; the
-    app does not automatically publish or approve content.
--   **Prototype security:** authentication, role-based permissions, and
-    a production-grade reviewer identity/audit trail are not currently
-    implemented.
+* **Deterministic detection:** Audit checks depend on supported rules, keywords, and numerical conditions.
+* **Limited semantic understanding:** The application does not understand every claim or context.
+* **No independent source verification:** It does not independently validate external sources, source freshness, or whether evidence is authoritative.
+* **No external AI model integration:** The current audit is not an LLM-powered semantic or tone review.
+* **Human decision required:** Findings need human interpretation. The application does not automatically publish or approve content.
+* **Prototype scope:** Further automated testing and security hardening are needed before production use in high-stakes publishing workflows.
 
-Use the demo with sample content. Do not rely on it as the sole control
-for legal, regulatory, or high-stakes publishing decisions.
+Use the demo with sample content. Do not rely on it as the sole control for legal, regulatory, or high-stakes publishing decisions.
 
-## Roadmap --- planned improvements
+## Roadmap — Planned Improvements
 
-These are **planned**, not implemented features:
+These are future development goals, not currently implemented features:
 
-1.  **Claim-to-evidence consistency checks** --- connect claims to
-    supporting evidence and highlight unsupported or conflicting
-    statements.
-2.  **Authentication and reviewer roles** --- introduce sign-in and
-    role-based access with accountable review records.
-3.  **Explainable AI-assisted review** --- explore contextual checks
-    while keeping human approval in control.
+1. **AI-assisted claim analysis:** Explore optional AI-based contextual analysis while keeping human approval in control.
+2. **Improved semantic matching:** Strengthen claim-to-evidence matching beyond keyword and numerical-condition checks.
+3. **Evidence-source validation:** Improve source references, traceability, and evidence freshness checks.
+4. **Advanced governance reporting:** Expand audit reporting and accountability features.
+5. **Automated testing:** Add broader backend and frontend test coverage.
 
-## Project status
+## Project Status
 
-Built as a hackathon prototype to demonstrate a practical
-pre-publication review workflow. The focus is on transparent rule checks
-and human accountability, with more advanced evidence and governance
-capabilities planned for future iterations.
+ProofBeforePost was developed as a hackathon project to demonstrate a practical pre-publication brand governance workflow.
+
+The Round 3 version extends the original rule-based auditing prototype with claim-to-evidence consistency checks, authentication, role-based permissions, and evidence review capabilities.
+
+The platform focuses on transparent findings, accountable human decisions, and responsible content publishing.
 
 ## Author
 
 **Rahul Yadav**
-B.Tech CSE (AI), Dr. M.G.R. Educational and Research Institute
 
--   GitHub: https://github.com/rahulyadav7418
--   Project repository:
-    https://github.com/rahulyadav7418/ProofBeforePost
+B.Tech CSE (AI)
+Dr. M.G.R. Educational and Research Institute
+
+* **GitHub:** https://github.com/rahulyadav7418
+* **Project Repository:** https://github.com/rahulyadav7418/ProofBeforePost

@@ -1039,3 +1039,264 @@ overflow-wrap: anywhere;
     padding: 8px 10px;
   }
 }
+
+/* =================================
+   AUTHENTICATION UI
+================================= */
+
+.auth-container {
+  min-height: 100vh;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  background: #ffffff;
+  font-family: "DM Sans", sans-serif;
+}
+
+.auth-showcase {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  padding: 55px 9%;
+  background: linear-gradient(145deg, #10234c, #173d82);
+  color: #ffffff;
+}
+
+.auth-brand,
+.auth-mobile-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-family: "Manrope", sans-serif;
+  font-size: 21px;
+  font-weight: 800;
+}
+
+.auth-brand-icon {
+  display: grid;
+  place-items: center;
+  width: 43px;
+  height: 43px;
+  border-radius: 12px;
+  background: #ffffff;
+  color: #2459d3;
+  font-size: 24px;
+  font-weight: 800;
+}
+
+.auth-showcase-content {
+  max-width: 520px;
+  margin: 55px auto;
+}
+
+.auth-eyebrow,
+.auth-form-eyebrow {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.8px;
+}
+
+.auth-eyebrow {
+  color: #9bbcff;
+}
+
+.auth-showcase-content h1 {
+  margin: 20px 0;
+  font-family: "Manrope", sans-serif;
+  font-size: clamp(38px, 5vw, 58px);
+  line-height: 1.15;
+  letter-spacing: -2px;
+}
+
+.auth-showcase-content h1 span {
+  color: #8eb3ff;
+}
+
+.auth-showcase-content > p {
+  color: #d1dcf1;
+  font-size: 15px;
+  line-height: 1.8;
+}
+
+.auth-feature-list {
+  display: grid;
+  gap: 18px;
+  margin-top: 35px;
+  color: #e5edff;
+  font-size: 14px;
+}
+
+.auth-showcase-footer {
+  color: #b7c7e4;
+  font-size: 12px;
+}
+
+.auth-form-section {
+  display: grid;
+  place-items: center;
+  padding: 35px 7%;
+}
+
+.auth-card {
+  width: 100%;
+  max-width: 430px;
+  padding: 15px 0;
+}
+
+.auth-mobile-brand {
+  display: none;
+  margin-bottom: 40px;
+  color: #172033;
+}
+
+.auth-form-eyebrow {
+  color: #285bd1;
+}
+
+.auth-card h2 {
+  margin: 14px 0 8px;
+  color: #172033;
+  font-family: "Manrope", sans-serif;
+  font-size: 30px;
+  letter-spacing: -0.8px;
+}
+
+.auth-description {
+  margin: 0 0 30px;
+  color: #788397;
+  font-size: 14px;
+  line-height: 1.7;
+}
+
+.auth-field {
+  margin-bottom: 20px;
+}
+
+.auth-field label {
+  display: block;
+  margin-bottom: 8px;
+  color: #344157;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+.auth-field input {
+  width: 100%;
+  min-height: 48px;
+  padding: 13px 14px;
+  border: 1px solid #dfe5ee;
+  border-radius: 10px;
+  background: #ffffff;
+  font-size: 14px;
+}
+
+.auth-field input:focus {
+  border-color: #285bd1;
+  outline: none;
+  box-shadow: 0 0 0 3px rgb(40 91 209 / 10%);
+}
+
+.auth-password-wrapper {
+  position: relative;
+}
+
+.auth-password-wrapper input {
+  padding-right: 65px;
+}
+
+.auth-password-toggle {
+  position: absolute;
+  top: 50%;
+  right: 13px;
+  transform: translateY(-50%);
+  border: none;
+  background: transparent;
+  color: #285bd1;
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.auth-submit {
+  width: 100%;
+  min-height: 49px;
+  margin-top: 10px;
+  border: none;
+  border-radius: 10px;
+  background: #285bd1;
+  color: #ffffff;
+  font-size: 14px;
+  font-weight: 700;
+  transition: background 0.2s, transform 0.2s;
+}
+
+.auth-submit:hover:not(:disabled) {
+  transform: translateY(-2px);
+  background: #1949ba;
+}
+
+.auth-submit:disabled {
+  cursor: not-allowed;
+  opacity: 0.65;
+}
+
+.auth-error {
+  padding: 12px;
+  border: 1px solid #f5caca;
+  border-radius: 9px;
+  background: #fff0f0;
+  color: #bd3030;
+  font-size: 13px;
+}
+
+.auth-switch-text {
+  margin-top: 25px;
+  color: #788397;
+  font-size: 13px;
+  text-align: center;
+}
+
+.auth-switch {
+  margin-left: 5px;
+  padding: 3px;
+  border: none;
+  background: transparent;
+  color: #285bd1;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.auth-security-note {
+  margin-top: 35px;
+  color: #9aa6b9;
+  font-size: 11px;
+  text-align: center;
+}
+
+@media (max-width: 800px) {
+  .auth-container {
+    grid-template-columns: 1fr;
+  }
+
+  .auth-showcase {
+    display: none;
+  }
+
+  .auth-form-section {
+    min-height: 100vh;
+    padding: 35px 7%;
+  }
+
+  .auth-mobile-brand {
+    display: flex;
+  }
+}
+
+@media (max-width: 480px) {
+  .auth-card h2 {
+    font-size: 25px;
+  }
+
+  .auth-form-section {
+    padding: 25px 22px;
+  }
+}
